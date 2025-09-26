@@ -719,7 +719,7 @@
             
             if (filteredCustomers.length === 0) {
                 const row = tbody.insertRow();
-                row.innerHTML = '<td colspan="8" style="text-align: center; padding: 20px; color: #6b7280;">데이터가 없습니다. 엑셀 파일을 업로드해주세요.</td>';
+                row.innerHTML = '<td colspan="8" style="text-align: center; padding: 20px; color: #6b7280;">데이터가 없습니다. 엑셀 파일을 업로드하거나 샘플 데이터를 로드해주세요.</td>';
                 return;
             }
             
@@ -736,8 +736,11 @@
                     lastTransactionDate = customer.lastTransactionDate.toLocaleDateString('ko-KR');
                 }
                 
+                // 고객명 안전 처리
+                const customerName = customer.name || '알 수 없음';
+                
                 row.innerHTML = `
-                    <td>${customer.name}</td>
+                    <td>${customerName}</td>
                     <td>${classificationBadge}</td>
                     <td class="amount-positive">₩${(customer.depositAmount || 0).toLocaleString()}</td>
                     <td class="amount-positive">₩${(customer.salesAmount || 0).toLocaleString()}</td>
@@ -745,7 +748,7 @@
                     <td>${customer.transactions.length}건</td>
                     <td>${lastTransactionDate}</td>
                     <td>
-                        <button class="btn" onclick="editCustomer('${customer.name}')">수정</button>
+                        <button class="btn" onclick="editCustomer('${customerName.replace(/'/g, "\\'")}')">수정</button>
                     </td>
                 `;
             });
@@ -782,6 +785,7 @@
             });
             
             const totalAmount = tradeTransactions.reduce((sum, t) => sum + t.inAmount, 0);
+            const avgAmount = tradeTransactions.length > 0 ? Math.round(totalAmount / tradeTransactions.length) : 0;
             
             document.getElementById('tradeSalesGrid').innerHTML = `
                 <div class="summary-card">
@@ -792,19 +796,25 @@
                 <div class="summary-card">
                     <div class="summary-title">거래 건수</div>
                     <div class="summary-value">${tradeTransactions.length}건</div>
-                    <div class="summary-detail">평균: ₩${Math.round(totalAmount / tradeTransactions.length).toLocaleString()}</div>
+                    <div class="summary-detail">평균: ₩${avgAmount.toLocaleString()}</div>
                 </div>
             `;
             
             const tbody = document.getElementById('tradeSalesTable');
             tbody.innerHTML = '';
             
+            if (tradeTransactions.length === 0) {
+                const row = tbody.insertRow();
+                row.innerHTML = '<td colspan="4" style="text-align: center; padding: 20px; color: #6b7280;">트레이드 매출 데이터가 없습니다.</td>';
+                return;
+            }
+            
             tradeTransactions.forEach(transaction => {
                 const row = tbody.insertRow();
                 row.innerHTML = `
-                    <td>${transaction.customer}</td>
-                    <td>${transaction.date}</td>
-                    <td class="amount-positive">₩${transaction.inAmount.toLocaleString()}</td>
+                    <td>${transaction.customer || '알 수 없음'}</td>
+                    <td>${transaction.date || '-'}</td>
+                    <td class="amount-positive">₩${(transaction.inAmount || 0).toLocaleString()}</td>
                     <td><span class="status-badge status-sales">트레이드</span></td>
                 `;
             });
@@ -817,6 +827,7 @@
             });
             
             const totalAmount = boutiqueTransactions.reduce((sum, t) => sum + t.inAmount, 0);
+            const avgAmount = boutiqueTransactions.length > 0 ? Math.round(totalAmount / boutiqueTransactions.length) : 0;
             
             document.getElementById('boutiqueSalesGrid').innerHTML = `
                 <div class="summary-card">
@@ -827,19 +838,25 @@
                 <div class="summary-card">
                     <div class="summary-title">거래 건수</div>
                     <div class="summary-value">${boutiqueTransactions.length}건</div>
-                    <div class="summary-detail">평균: ₩${Math.round(totalAmount / boutiqueTransactions.length).toLocaleString()}</div>
+                    <div class="summary-detail">평균: ₩${avgAmount.toLocaleString()}</div>
                 </div>
             `;
             
             const tbody = document.getElementById('boutiqueSalesTable');
             tbody.innerHTML = '';
             
+            if (boutiqueTransactions.length === 0) {
+                const row = tbody.insertRow();
+                row.innerHTML = '<td colspan="4" style="text-align: center; padding: 20px; color: #6b7280;">부티크 매출 데이터가 없습니다.</td>';
+                return;
+            }
+            
             boutiqueTransactions.forEach(transaction => {
                 const row = tbody.insertRow();
                 row.innerHTML = `
-                    <td>${transaction.customer}</td>
-                    <td>${transaction.date}</td>
-                    <td class="amount-positive">₩${transaction.inAmount.toLocaleString()}</td>
+                    <td>${transaction.customer || '알 수 없음'}</td>
+                    <td>${transaction.date || '-'}</td>
+                    <td class="amount-positive">₩${(transaction.inAmount || 0).toLocaleString()}</td>
                     <td><span class="status-badge status-boutique">부티크</span></td>
                 `;
             });
@@ -852,6 +869,8 @@
             const totalRefunds = depositCustomers.reduce((sum, c) => sum + c.refundAmount, 0);
             const maintainedDeposits = depositCustomers.filter(c => c.status === 'maintained').reduce((sum, c) => sum + c.depositAmount, 0);
             
+            const refundRate = totalDeposits > 0 ? Math.round(totalRefunds / totalDeposits * 100) : 0;
+            
             document.getElementById('depositsGrid').innerHTML = `
                 <div class="summary-card">
                     <div class="summary-title">총 보증금</div>
@@ -861,7 +880,7 @@
                 <div class="summary-card">
                     <div class="summary-title">총 환급액</div>
                     <div class="summary-value">₩${totalRefunds.toLocaleString()}</div>
-                    <div class="summary-detail">환급률: ${Math.round(totalRefunds / totalDeposits * 100)}%</div>
+                    <div class="summary-detail">환급률: ${refundRate}%</div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-title">유지 보증금</div>
@@ -873,19 +892,26 @@
             const tbody = document.getElementById('depositsTable');
             tbody.innerHTML = '';
             
+            if (depositCustomers.length === 0) {
+                const row = tbody.insertRow();
+                row.innerHTML = '<td colspan="6" style="text-align: center; padding: 20px; color: #6b7280;">보증금 데이터가 없습니다.</td>';
+                return;
+            }
+            
             depositCustomers.forEach(customer => {
                 const row = tbody.insertRow();
                 const difference = customer.depositAmount - customer.refundAmount;
                 const statusBadge = getStatusBadge(customer);
+                const customerName = customer.name || '알 수 없음';
                 
                 row.innerHTML = `
-                    <td>${customer.name}</td>
-                    <td class="amount-positive">₩${customer.depositAmount.toLocaleString()}</td>
-                    <td class="amount-negative">₩${customer.refundAmount.toLocaleString()}</td>
+                    <td>${customerName}</td>
+                    <td class="amount-positive">₩${(customer.depositAmount || 0).toLocaleString()}</td>
+                    <td class="amount-negative">₩${(customer.refundAmount || 0).toLocaleString()}</td>
                     <td>${statusBadge}</td>
                     <td class="${difference > 0 ? 'amount-positive' : 'amount-negative'}">₩${difference.toLocaleString()}</td>
                     <td>
-                        <button class="btn" onclick="editDeposit('${customer.name}')">수정</button>
+                        <button class="btn" onclick="editDeposit('${customerName.replace(/'/g, "\\'")}')">수정</button>
                     </td>
                 `;
             });
