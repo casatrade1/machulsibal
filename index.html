@@ -541,7 +541,10 @@
                       depositAmount: 500000, 
                       monthlyFeeDeduction: 104000,
                       actualRefund: 1009475,
-                      specialCalculation: true },
+                      specialCalculation: true,
+                      depositDate: '2024-10-30',
+                      depositTransactions: ['2024-10-30_300000', '2024-11-02_200000'],
+                      excludeFromDepositManagement: false },
             '신범수': { type: 'deposit_500000', note: '보증금 50만원', depositAmount: 500000 },
             '김유빈': { type: 'deposit_100000', note: '보증금 10만원', depositAmount: 100000 },
             '정익만': { type: 'deposit_500000', note: '보증금 50만원 (매출 있음)', depositAmount: 500000, hasSales: true },
@@ -693,9 +696,17 @@
                 // 김규: 7/14(50만) + 7/17(150만) = 200만 보증금
                 if (specialCase.type === 'deposit_2000000') {
                     const isKimGyuDeposit = (transaction.date === '2025-07-14' && transaction.inAmount === 500000) ||
-                           (transaction.date === '2025-07-17' && transaction.inAmount === 1500000);
+                                           (transaction.date === '2025-07-17' && transaction.inAmount === 1500000);
                     console.log('→ 김규 보증금 체크:', isKimGyuDeposit);
                     if (isKimGyuDeposit) return true;
+                }
+                
+                // 이유진: 10/30(30만) + 11/2(20만) = 50만 보증금
+                if (specialCase.type === 'complex_deposit_case') {
+                    const isLeeYujinDeposit = (transaction.date === '2024-10-30' && transaction.inAmount === 300000) ||
+                                            (transaction.date === '2024-11-02' && transaction.inAmount === 200000);
+                    console.log('→ 이유진 보증금 체크:', isLeeYujinDeposit);
+                    if (isLeeYujinDeposit) return true;
                 }
                 
                 // 김선영: 보증금 200만원 (100만×2회)
@@ -1171,7 +1182,7 @@
                     // 이유진: 복잡한 보증금 케이스 (보증금 50만원, 월이용료 차감 104,000원, 환불 1,009,475원)
                     if (specialCase.type === 'complex_deposit_case') {
                         customer.depositAmount = specialCase.depositAmount; // 50만원 보증금
-                        customer.depositDate = incomeTransactions[0].date; // 첫 보증금 날짜
+                        customer.depositDate = specialCase.depositDate; // 2024-10-30
                         customer.depositStatus = 'unreturned'; // 월이용료 차감 후 잔액 있음
                         customer.returnDate = null;
                         
@@ -2899,6 +2910,7 @@
                 customer.salesAmount = Math.max(0, customer.totalIncome - specialCase.actualRefund);
                 customer.salesType = 'trade';
                 customer.depositAmount = specialCase.depositAmount;
+                customer.depositDate = specialCase.depositDate;
                 customer.depositStatus = 'unreturned';
                 customer.returnDate = null;
                 
