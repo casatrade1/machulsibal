@@ -1,5 +1,4 @@
-
-</html><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -10,6 +9,24 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', sans-serif; background: #f5f7fa; line-height: 1.6; }
         .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+        
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            .header-stats { grid-template-columns: 1fr; }
+            .summary-grid { grid-template-columns: 1fr; }
+            .tabs { flex-direction: column; }
+            .tab { padding: 12px 15px; }
+            table { font-size: 0.8em; }
+            th, td { padding: 8px 4px; }
+        }
+        
+        @media (max-width: 480px) {
+            .header { padding: 20px; }
+            .header h1 { font-size: 1.5em; }
+            .section-header { flex-direction: column; gap: 10px; }
+            .summary-card { padding: 15px; }
+        }
         
         .header { 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
@@ -670,26 +687,22 @@
         function isTransactionDeposit(customer, transaction) {
             if (transaction.type !== '입금') return false;
             
-            console.log(`=== 보증금 체크: ${customer.name} ===`);
-            console.log('거래일:', transaction.date, '금액:', transaction.inAmount);
-            console.log('고객 보증금:', customer.depositAmount, '보증금일:', customer.depositDate);
+            // 보증금 거래 인식 로직
             
             // 1. 기본 보증금 거래 (첫 거래이고 100만원 이상)
             if (customer.depositAmount > 0 && transaction.inAmount === customer.depositAmount && transaction.date === customer.depositDate) {
-                console.log('→ 기본 보증금 거래 인식');
                 return true;
             }
             
             // 2. 특수 케이스들 자동 인식
             const specialCase = specialCases[customer.name];
-            console.log('특수케이스:', specialCase);
+            // 특수 케이스 처리
             
             if (specialCase) {
                 // 김미정: 8/14(100만) + 8/15(150만) = 250만 보증금
                 if (specialCase.type === 'deposit_2500000') {
                     const isKimMijeongDeposit = (transaction.date === '2025-08-14' && transaction.inAmount === 1000000) ||
                            (transaction.date === '2025-08-15' && transaction.inAmount === 1500000);
-                    console.log('→ 김미정 보증금 체크:', isKimMijeongDeposit);
                     if (isKimMijeongDeposit) return true;
                 }
                 
@@ -697,7 +710,6 @@
                 if (specialCase.type === 'deposit_2000000') {
                     const isKimGyuDeposit = (transaction.date === '2025-07-14' && transaction.inAmount === 500000) ||
                                            (transaction.date === '2025-07-17' && transaction.inAmount === 1500000);
-                    console.log('→ 김규 보증금 체크:', isKimGyuDeposit);
                     if (isKimGyuDeposit) return true;
                 }
                 
@@ -705,7 +717,6 @@
                 if (specialCase.type === 'complex_deposit_case') {
                     const isLeeYujinDeposit = (transaction.date === '2024-10-30' && transaction.inAmount === 300000) ||
                                             (transaction.date === '2024-11-02' && transaction.inAmount === 200000);
-                    console.log('→ 이유진 보증금 체크:', isLeeYujinDeposit);
                     if (isLeeYujinDeposit) return true;
                 }
                 
@@ -721,7 +732,6 @@
                         t.inAmount === transaction.inAmount && 
                         t.inAmount === 1000000
                     );
-                    console.log('→ 김선영 보증금 체크:', isFirstTwoDeposits);
                     if (isFirstTwoDeposits) return true;
                 }
                 
@@ -734,7 +744,6 @@
                     const isFirstTransaction = sortedTransactions[0] && 
                            sortedTransactions[0].date === transaction.date && 
                            sortedTransactions[0].inAmount === transaction.inAmount;
-                    console.log('→ 기타 보증금 체크:', isFirstTransaction);
                     if (isFirstTransaction) return true;
                 }
             }
@@ -748,11 +757,9 @@
                 sortedTransactions[0].date === transaction.date && 
                 sortedTransactions[0].inAmount === transaction.inAmount &&
                 transaction.inAmount >= 100000) { // 10만원 이상을 보증금으로 간주
-                console.log('→ 일반 보증금 패턴 인식');
                 return true;
             }
             
-            console.log('→ 보증금 아님');
             return false;
         }
     
@@ -2241,7 +2248,12 @@
                 }
                 
                 // 직원분류 확인
-                const staffClass = t.staffClass;
+                const staffClass = (function(){
+                    try {
+                        const id = `${t.date}_${t.customer}_${t.inAmount || t.outAmount}`;
+                        return staffClassifications[id] || t.staffClass;
+                    } catch(e) { return t.staffClass; }
+                })();
                 let staffClassBadge = '<span style="color: #6b7280;">없음</span>';
                 if (staffClass) {
                     const classLabels = {
@@ -2829,99 +2841,100 @@
     
         // 직원 분류 업데이트 함수들 (성능 최적화)
         function updateStaffClassification(transactionId, classification) {
-            console.log(`=== 직원분류 변경: ${transactionId} → ${classification} ===`);
-            
-            // 직원 분류 저장
-            staffClassifications[transactionId] = classification;
-            
-            // 거래 ID에서 고객명 추출
-            const parts = transactionId.split('_');
-            if (parts.length >= 2) {
+            try {
+                // 직원 분류 저장
+                staffClassifications[transactionId] = classification;
+                
+                // 거래 ID에서 고객명 추출
+                const parts = transactionId.split('_');
+                if (parts.length < 2) {
+                    throw new Error('잘못된 거래 ID 형식');
+                }
+                
                 const customerName = parts[1];
-                console.log(`고객명: ${customerName} 처리 시작`);
                 
                 // 해당 고객이 존재하는지 확인
                 if (allCustomers[customerName]) {
                     // 즉시 해당 고객만 재계산 (최적화)
                     recalculateCustomerDataOnly(allCustomers[customerName]);
-                    console.log(`${customerName} 재계산 완료`);
                     
-                    // 보증금 관리 테이블 강제 새로고침 (확실한 방법)
+                    // 보증금 관리 테이블만 업데이트 (성능 최적화)
                     updateDepositsTab();
+                } else {
+                    throw new Error(`고객 '${customerName}'을 찾을 수 없습니다`);
                 }
+                
+                // 로컬 스토리지에 저장
+                saveData();
+                
+                // 사용자에게 알림
+                const displayClassification = classification || '자동분류';
+                showNotification(`✅ ${customerName} 분류가 ${displayClassification}로 변경되었습니다!`);
+                
+            } catch (error) {
+                console.error('분류 업데이트 오류:', error);
+                showNotification(`❌ 분류 변경 중 오류가 발생했습니다: ${error.message}`, 'error');
             }
-            
-            // 로컬 스토리지에 저장
-            saveData();
-            
-            console.log(`거래 ${transactionId}의 분류를 ${classification || '자동분류'}로 변경 - 완료`);
-            
-            // 사용자에게 알림
-            const displayClassification = classification || '자동분류';
-            const customerName = parts.length >= 2 ? parts[1] : '고객';
-            showNotification(`✅ ${customerName} 분류가 ${displayClassification}로 변경되었습니다!`);
         }
         
         // 특정 고객만 테이블에서 업데이트 (성능 최적화)
         function updateSpecificCustomerInTables(customerName) {
-            const customer = allCustomers[customerName];
-            if (!customer) {
-                console.log(`고객 ${customerName}을 찾을 수 없습니다.`);
-                return;
-            }
-            
-            console.log(`=== ${customerName} 테이블 업데이트 시작 ===`);
-            console.log('고객 정보:', customer);
-            
-            // 보증금 관리 테이블에서 해당 고객 행만 업데이트
-            const depositRows = document.querySelectorAll('#depositsTable tbody tr');
-            console.log(`총 ${depositRows.length}개 행 발견`);
-            
-            let found = false;
-            depositRows.forEach((row, index) => {
-                const rowCustomerName = row.cells[0].textContent.trim();
-                console.log(`행 ${index}: "${rowCustomerName}" vs "${customerName}"`);
-                
-                if (rowCustomerName === customerName) {
-                    found = true;
-                    console.log(`일치하는 행 발견! 행 ${index} 업데이트 시작`);
-                    // 해당 행의 모든 컬럼 업데이트 (컬럼 순서: 고객명, 보증금, 보증금날짜, 환급상태, 환급일, 매출, 비고)
-                    row.cells[1].innerHTML = `<span class="amount-negative">₩${customer.depositAmount.toLocaleString()}</span>`;
-                    row.cells[2].textContent = customer.depositDate || '-';
-                    
-                    // 환급상태 업데이트
-                    const statusBadge = (customer.depositAmount || 0) > 0 ? 
-                        (customer.depositStatus === 'returned' ? 
-                            '<span class="status-badge status-returned">환급완료</span>' : 
-                            '<span class="status-badge status-unreturned">미환급</span>') : 
-                        '<span class="status-badge status-sales">매출만</span>';
-                    row.cells[3].innerHTML = statusBadge;
-                    
-                    // 환급일 업데이트
-                    row.cells[4].textContent = customer.returnDate || '-';
-                    
-                    // 매출 업데이트
-                    row.cells[5].innerHTML = `<span class="amount-positive">₩${(customer.salesAmount || 0).toLocaleString()}</span>`;
-                    
-                    // 비고 업데이트
-                    if (customer.complexCaseInfo) {
-                        row.cells[6].textContent = `보증금 ${customer.complexCaseInfo.originalDeposit.toLocaleString()}원, 월이용료 차감 ${customer.complexCaseInfo.monthlyFeeDeduction.toLocaleString()}원, 환불 ${customer.complexCaseInfo.actualRefund.toLocaleString()}원`;
-                    } else {
-                        row.cells[6].textContent = customer.note || '';
-                    }
+            try {
+                const customer = allCustomers[customerName];
+                if (!customer) {
+                    throw new Error(`고객 '${customerName}'을 찾을 수 없습니다`);
                 }
-            });
-            
-            if (!found) {
-                console.log(`일치하는 행을 찾지 못했습니다. 전체 테이블 새로고침 실행`);
-                // 일치하는 행이 없으면 전체 테이블 새로고침
+                
+                // 보증금 관리 테이블에서 해당 고객 행만 업데이트
+                const depositRows = document.querySelectorAll('#depositsTable tbody tr');
+                let found = false;
+                
+                depositRows.forEach((row) => {
+                    const rowCustomerName = row.cells[0]?.textContent?.trim();
+                    if (rowCustomerName === customerName) {
+                        found = true;
+                        // 해당 행의 모든 컬럼 업데이트 (컬럼 순서: 고객명, 보증금, 보증금날짜, 환급상태, 환급일, 매출, 비고)
+                        if (row.cells[1]) row.cells[1].innerHTML = `<span class="amount-negative">₩${customer.depositAmount.toLocaleString()}</span>`;
+                        if (row.cells[2]) row.cells[2].textContent = customer.depositDate || '-';
+                        
+                        // 환급상태 업데이트
+                        const statusBadge = (customer.depositAmount || 0) > 0 ? 
+                            (customer.depositStatus === 'returned' ? 
+                                '<span class="status-badge status-returned">환급완료</span>' : 
+                                '<span class="status-badge status-unreturned">미환급</span>') : 
+                            '<span class="status-badge status-sales">매출만</span>';
+                        if (row.cells[3]) row.cells[3].innerHTML = statusBadge;
+                        
+                        // 환급일 업데이트
+                        if (row.cells[4]) row.cells[4].textContent = customer.returnDate || '-';
+                        
+                        // 매출 업데이트
+                        if (row.cells[5]) row.cells[5].innerHTML = `<span class="amount-positive">₩${(customer.salesAmount || 0).toLocaleString()}</span>`;
+                        
+                        // 비고 업데이트
+                        if (row.cells[6]) {
+                            if (customer.complexCaseInfo) {
+                                row.cells[6].textContent = `보증금 ${customer.complexCaseInfo.originalDeposit.toLocaleString()}원, 월이용료 차감 ${customer.complexCaseInfo.monthlyFeeDeduction.toLocaleString()}원, 환불 ${customer.complexCaseInfo.actualRefund.toLocaleString()}원`;
+                            } else {
+                                row.cells[6].textContent = customer.note || '';
+                            }
+                        }
+                    }
+                });
+                
+                if (!found) {
+                    // 일치하는 행이 없으면 전체 테이블 새로고침
+                    updateDepositsTab();
+                }
+                
+                // CEO 대시보드 요약 수치만 업데이트
+                updateHeaderStatsOnly();
+                
+            } catch (error) {
+                console.error('테이블 업데이트 오류:', error);
+                // 오류 발생 시 전체 테이블 새로고침
                 updateDepositsTab();
-            } else {
-                console.log(`${customerName} 행 업데이트 완료`);
             }
-            
-            // CEO 대시보드 요약 수치만 업데이트
-            updateHeaderStatsOnly();
         }
         
         // 헤더 통계만 업데이트 (빠른 업데이트)
@@ -3643,11 +3656,40 @@
                 showNotification('✅ 분석 결과(JSON)가 내보내졌습니다!');
             }
     
-            function showNotification(message) {
-                const notification = document.getElementById('notification');
-                notification.textContent = message;
-                notification.classList.add('show');
-                setTimeout(() => notification.classList.remove('show'), 3000);
+            function showNotification(message, type = 'success') {
+                try {
+                    const notification = document.getElementById('notification');
+                    if (!notification) {
+                        // 폴백: 동적 생성
+                        const newNotification = document.createElement('div');
+                        newNotification.id = 'notification';
+                        newNotification.style.cssText = `
+                            position: fixed; top: 20px; right: 20px; z-index: 1000;
+                            padding: 15px 20px; border-radius: 8px; color: white;
+                            font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                            background: ${type === 'error' ? '#dc2626' : '#059669'};
+                            transform: translateX(100%); transition: transform 0.3s ease;
+                            max-width: 300px; word-wrap: break-word;
+                        `;
+                        document.body.appendChild(newNotification);
+                        newNotification.textContent = message;
+                        requestAnimationFrame(() => newNotification.style.transform = 'translateX(0)');
+                        setTimeout(() => {
+                            newNotification.style.transform = 'translateX(100%)';
+                            setTimeout(() => newNotification.remove(), 300);
+                        }, 3000);
+                        return;
+                    }
+                    
+                    notification.textContent = message;
+                    notification.className = `show ${type}`;
+                    notification.style.background = type === 'error' ? '#dc2626' : '#059669';
+                    
+                    setTimeout(() => notification.classList.remove('show'), 3000);
+                } catch (error) {
+                    console.error('알림 표시 오류:', error);
+                    alert(message);
+                }
             }
     
             function showProgress(percentage, message) {
