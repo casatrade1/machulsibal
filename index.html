@@ -2872,7 +2872,7 @@
             depositRows.forEach(row => {
                 const rowCustomerName = row.cells[0].textContent.trim();
                 if (rowCustomerName === customerName) {
-                    // 해당 행의 모든 컬럼 업데이트
+                    // 해당 행의 모든 컬럼 업데이트 (컬럼 순서: 고객명, 보증금, 보증금날짜, 환급상태, 환급일, 매출, 비고)
                     row.cells[1].innerHTML = `<span class="amount-negative">₩${customer.depositAmount.toLocaleString()}</span>`;
                     row.cells[2].textContent = customer.depositDate || '-';
                     
@@ -2901,6 +2901,9 @@
             
             // CEO 대시보드 요약 수치만 업데이트
             updateHeaderStatsOnly();
+            
+            // 보증금 관리 테이블 완전 새로고침 (강제)
+            updateDepositsTab();
         }
         
         // 헤더 통계만 업데이트 (빠른 업데이트)
