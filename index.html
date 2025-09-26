@@ -94,6 +94,7 @@
         }
         .status-unreturned { background: #fef2f2; color: #dc2626; }
         .status-returned { background: #f0fdf4; color: #059669; }
+        .status-refund { background: #fef2f2; color: #dc2626; }
         .status-excluded { background: #fef3c7; color: #d97706; }
         .status-new { background: #ede9fe; color: #7c3aed; }
         .status-sales { background: #dbeafe; color: #2563eb; }
@@ -536,7 +537,11 @@
             '신수연': { type: 'partial_refund', note: '보증금 1500만원 → 1000만원 부분환급 → 잔액 500만원', 
                       totalDeposit: 15000000, partialRefund: 10000000, remainingDeposit: 5000000, 
                       refundDate: '2025-09-17' },
-            '이유진': { type: 'deposit_500000_unreturned', note: '보증금 50만원 미환급', depositAmount: 500000 },
+            '이유진': { type: 'complex_deposit_case', note: '보증금 50만원, 월이용료 차감 104,000원, 환불 1,009,475원', 
+                      depositAmount: 500000, 
+                      monthlyFeeDeduction: 104000,
+                      actualRefund: 1009475,
+                      specialCalculation: true },
             '신범수': { type: 'deposit_500000', note: '보증금 50만원', depositAmount: 500000 },
             '김유빈': { type: 'deposit_100000', note: '보증금 10만원', depositAmount: 100000 },
             '정익만': { type: 'deposit_500000', note: '보증금 50만원 (매출 있음)', depositAmount: 500000, hasSales: true },
@@ -605,14 +610,24 @@
                     
                     // 직원분류 월이용료 합계(입금/출금 어느 쪽이든 금액 사용)
                     let totalMonthlyFee = 0;
+                    let totalActualRefund = 0;
                     customerTransactions.forEach(t => {
                         const tId = `${t.date}_${t.customer}_${t.inAmount || t.outAmount}`;
                         if (staffClassifications[tId] === 'monthlyFee') {
                             totalMonthlyFee += (t.inAmount || t.outAmount || 0);
                         }
+                        if (staffClassifications[tId] === 'actualRefund') {
+                            totalActualRefund += (t.inAmount || t.outAmount || 0);
+                        }
                     });
                     
                     const adjusted = Math.max(0, (customer.depositAmount || 0) - totalCustomerOut - totalMonthlyFee);
+                    
+                    // 실제 매출 계산 (총 매출 - 환불 금액)
+                    if (totalActualRefund > 0) {
+                        customer.salesAmount = Math.max(0, customer.totalIncome - totalActualRefund);
+                    }
+                    
                     // 환급완료 여부 업데이트
                     if (adjusted === 0 && totalCustomerOut > 0) {
                         customer.depositStatus = 'returned';
@@ -1149,6 +1164,28 @@
                             partialRefund: specialCase.partialRefund,
                             refundDate: specialCase.refundDate,
                             remainingDeposit: specialCase.remainingDeposit
+                        };
+                        return;
+                    }
+                    
+                    // 이유진: 복잡한 보증금 케이스 (보증금 50만원, 월이용료 차감 104,000원, 환불 1,009,475원)
+                    if (specialCase.type === 'complex_deposit_case') {
+                        customer.depositAmount = specialCase.depositAmount; // 50만원 보증금
+                        customer.depositDate = incomeTransactions[0].date; // 첫 보증금 날짜
+                        customer.depositStatus = 'unreturned'; // 월이용료 차감 후 잔액 있음
+                        customer.returnDate = null;
+                        
+                        // 실제 매출 = 총 매출 - 환불 금액
+                        customer.salesAmount = Math.max(0, customer.totalIncome - specialCase.actualRefund);
+                        customer.salesType = 'trade';
+                        
+                        // 복잡한 케이스 정보 저장
+                        customer.complexCaseInfo = {
+                            originalDeposit: specialCase.depositAmount,
+                            monthlyFeeDeduction: specialCase.monthlyFeeDeduction,
+                            actualRefund: specialCase.actualRefund,
+                            remainingDeposit: Math.max(0, specialCase.depositAmount - specialCase.monthlyFeeDeduction),
+                            actualSales: customer.salesAmount
                         };
                         return;
                     }
@@ -1870,6 +1907,7 @@
                 // 직원 분류 확인해 월이용료 처리
                 const tId = `${transaction.date}_${transaction.customer}_${transaction.inAmount || transaction.outAmount}`;
                 if (staffClassifications[tId] === 'monthlyFee') return 'monthlyFee';
+                if (staffClassifications[tId] === 'actualRefund') return 'actualRefund';
                 return 'outgoing';
             }
             
@@ -1881,6 +1919,7 @@
             // 직원 분류 확인 (월이용료가 입금으로 표시된 경우 등)
             const tId2 = `${transaction.date}_${transaction.customer}_${transaction.inAmount || transaction.outAmount}`;
             if (staffClassifications[tId2] === 'monthlyFee') return 'monthlyFee';
+            if (staffClassifications[tId2] === 'actualRefund') return 'actualRefund';
 
             // 나머지는 매출
             return 'sales';
@@ -2199,6 +2238,7 @@
                         'boutique': '<span class="status-badge status-sales">부티크매출</span>',
                         'deposit': '<span class="status-badge status-deposit">보증금</span>',
                         'refund': '<span class="status-badge status-returned">환급</span>',
+                        'actualRefund': '<span class="status-badge status-refund">환불</span>',
                         'monthlyFee': '<span class="status-badge status-excluded">월이용료</span>',
                         'exclude': '<span class="status-badge status-excluded">제외</span>'
                     };
@@ -2720,6 +2760,7 @@
                             'boutique': '<span class="status-badge status-sales">부티크매출</span>',
                             'deposit': '<span class="status-badge status-deposit">보증금</span>',
                             'refund': '<span class="status-badge status-returned">환급</span>',
+                            'actualRefund': '<span class="status-badge status-refund">환불</span>',
                             'monthlyFee': '<span class="status-badge status-excluded">월이용료</span>',
                             'exclude': '<span class="status-badge status-excluded">제외</span>'
                         };
@@ -2733,6 +2774,7 @@
                             <option value="boutique" ${currentClassification === 'boutique' ? 'selected' : ''}>부티크매출</option>
                             <option value="deposit" ${currentClassification === 'deposit' ? 'selected' : ''}>보증금</option>
                             <option value="refund" ${currentClassification === 'refund' ? 'selected' : ''}>환급</option>
+                            <option value="actualRefund" ${currentClassification === 'actualRefund' ? 'selected' : ''}>환불</option>
                             <option value="monthlyFee" ${currentClassification === 'monthlyFee' ? 'selected' : ''}>월이용료</option>
                             <option value="exclude" ${currentClassification === 'exclude' ? 'selected' : ''}>제외</option>
                         </select>
@@ -2847,6 +2889,31 @@
         // 개별 고객만 재계산하는 함수 (analyzeCustomerData 호출 안 함)
         function recalculateCustomerDataOnly(customer) {
             console.log(`=== ${customer.name} 단독 재계산 시작 ===`);
+            
+            // 이유진 복잡한 케이스 특별 처리
+            if (customer.name === '이유진' && specialCases[customer.name] && specialCases[customer.name].type === 'complex_deposit_case') {
+                console.log('이유진 복잡한 케이스 - 특별 처리');
+                const specialCase = specialCases[customer.name];
+                
+                // 실제 매출 = 총 매출 - 환불 금액
+                customer.salesAmount = Math.max(0, customer.totalIncome - specialCase.actualRefund);
+                customer.salesType = 'trade';
+                customer.depositAmount = specialCase.depositAmount;
+                customer.depositStatus = 'unreturned';
+                customer.returnDate = null;
+                
+                // 복잡한 케이스 정보 저장
+                customer.complexCaseInfo = {
+                    originalDeposit: specialCase.depositAmount,
+                    monthlyFeeDeduction: specialCase.monthlyFeeDeduction,
+                    actualRefund: specialCase.actualRefund,
+                    remainingDeposit: Math.max(0, specialCase.depositAmount - specialCase.monthlyFeeDeduction),
+                    actualSales: customer.salesAmount
+                };
+                
+                console.log(`이유진 복잡한 케이스 최종: 보증금=${customer.depositAmount}, 실제매출=${customer.salesAmount}, 환불=${specialCase.actualRefund}`);
+                return;
+            }
             
             // 신수연 부분환급 특별 처리
             if (customer.name === '신수연' && specialCases[customer.name] && specialCases[customer.name].type === 'partial_refund') {
