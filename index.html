@@ -179,6 +179,7 @@
                     <button class="btn" onclick="exportCustomerData()">📊 JSON 내보내기</button>
                     <button class="btn" onclick="exportToExcel()">📈 엑셀 내보내기</button>
                     <button class="btn" onclick="showCustomerMergeModal()" style="background: #7c3aed;">🔗 고객 통합</button>
+                    <button class="btn" onclick="createSampleData()" style="background: #059669;">🧪 샘플 데이터</button>
                 </div>
             </div>
             <div class="section-body">
@@ -374,21 +375,39 @@
                 const row = jsonData[i];
                 if (!row || row.length < 4) continue;
                 
-                const date = row[0];
+                let date = row[0];
                 const customer = row[1];
                 const inAmount = row[2] ? parseFloat(row[2]) : 0;
                 const outAmount = row[3] ? parseFloat(row[3]) : 0;
                 
                 if (!date || !customer) continue;
                 
+                // 날짜 형식 처리
+                let parsedDate;
+                if (typeof date === 'number') {
+                    // 엑셀 날짜 숫자 형식 (1900년 기준)
+                    parsedDate = new Date((date - 25569) * 86400 * 1000);
+                } else if (typeof date === 'string') {
+                    // 문자열 날짜
+                    parsedDate = new Date(date);
+                } else {
+                    parsedDate = new Date(date);
+                }
+                
+                // 유효하지 않은 날짜 처리
+                if (isNaN(parsedDate.getTime())) {
+                    console.warn('유효하지 않은 날짜:', date);
+                    continue;
+                }
+                
                 const transaction = {
                     id: `${date}_${customer}_${inAmount || outAmount}`,
                     date: date,
-                    customer: customer.trim(),
+                    customer: customer.toString().trim(),
                     inAmount: inAmount || 0,
                     outAmount: outAmount || 0,
                     type: inAmount > 0 ? '입금' : '출금',
-                    parsedDate: new Date(date)
+                    parsedDate: parsedDate
                 };
                 
                 allTransactions.push(transaction);
@@ -396,6 +415,7 @@
             
             // 날짜순 정렬
             allTransactions.sort((a, b) => b.parsedDate - a.parsedDate);
+            console.log('파싱된 거래 수:', allTransactions.length);
         }
 
         function classifyCustomers() {
@@ -623,11 +643,17 @@
         }
 
         function updateAllTabs() {
+            console.log('=== 탭 업데이트 시작 ===');
+            console.log('전체 고객 수:', Object.keys(allCustomers).length);
+            console.log('전체 거래 수:', allTransactions.length);
+            
             updateOverviewTab();
             updateCustomersTab();
             updateTradeSalesTab();
             updateBoutiqueSalesTab();
             updateDepositsTab();
+            
+            console.log('=== 탭 업데이트 완료 ===');
         }
 
         function updateOverviewTab() {
@@ -637,9 +663,9 @@
             const maintainedCustomers = Object.values(allCustomers).filter(c => c.status === 'maintained').length;
             const churnedCustomers = Object.values(allCustomers).filter(c => c.status === 'churned').length;
             
-            const totalSales = Object.values(allCustomers).reduce((sum, c) => sum + c.salesAmount, 0);
-            const totalDeposits = Object.values(allCustomers).reduce((sum, c) => sum + c.depositAmount, 0);
-            const totalRefunds = Object.values(allCustomers).reduce((sum, c) => sum + c.refundAmount, 0);
+            const totalSales = Object.values(allCustomers).reduce((sum, c) => sum + (c.salesAmount || 0), 0);
+            const totalDeposits = Object.values(allCustomers).reduce((sum, c) => sum + (c.depositAmount || 0), 0);
+            const totalRefunds = Object.values(allCustomers).reduce((sum, c) => sum + (c.refundAmount || 0), 0);
             
             document.getElementById('overviewGrid').innerHTML = `
                 <div class="summary-card">
@@ -691,6 +717,12 @@
             const tbody = document.getElementById('customersTable');
             tbody.innerHTML = '';
             
+            if (filteredCustomers.length === 0) {
+                const row = tbody.insertRow();
+                row.innerHTML = '<td colspan="8" style="text-align: center; padding: 20px; color: #6b7280;">데이터가 없습니다. 엑셀 파일을 업로드해주세요.</td>';
+                return;
+            }
+            
             filteredCustomers.forEach(customer => {
                 const row = tbody.insertRow();
                 row.className = 'customer-row';
@@ -698,14 +730,20 @@
                 const statusBadge = getStatusBadge(customer);
                 const classificationBadge = getClassificationBadge(customer);
                 
+                // 날짜 형식 처리
+                let lastTransactionDate = '-';
+                if (customer.lastTransactionDate && !isNaN(customer.lastTransactionDate.getTime())) {
+                    lastTransactionDate = customer.lastTransactionDate.toLocaleDateString('ko-KR');
+                }
+                
                 row.innerHTML = `
                     <td>${customer.name}</td>
                     <td>${classificationBadge}</td>
-                    <td class="amount-positive">₩${customer.depositAmount.toLocaleString()}</td>
-                    <td class="amount-positive">₩${customer.salesAmount.toLocaleString()}</td>
+                    <td class="amount-positive">₩${(customer.depositAmount || 0).toLocaleString()}</td>
+                    <td class="amount-positive">₩${(customer.salesAmount || 0).toLocaleString()}</td>
                     <td>${statusBadge}</td>
                     <td>${customer.transactions.length}건</td>
-                    <td>${customer.lastTransactionDate ? customer.lastTransactionDate.toLocaleDateString() : '-'}</td>
+                    <td>${lastTransactionDate}</td>
                     <td>
                         <button class="btn" onclick="editCustomer('${customer.name}')">수정</button>
                     </td>
@@ -1303,6 +1341,45 @@
             
             showNotification(`✅ "${customer2Name}"이 "${customer1Name}"으로 통합되었습니다.`);
         }
+
+        // 테스트용 샘플 데이터 생성
+        function createSampleData() {
+            const sampleTransactions = [
+                { date: '2024-01-15', customer: '김규', inAmount: 1000000, outAmount: 0 },
+                { date: '2024-01-20', customer: '김규', inAmount: 150000, outAmount: 0 },
+                { date: '2024-01-25', customer: '김규', inAmount: 0, outAmount: 1000000 },
+                { date: '2024-02-01', customer: '김규낙찰금', inAmount: 500000, outAmount: 0 },
+                { date: '2024-02-05', customer: '김규낙찰금', inAmount: 200000, outAmount: 0 },
+                { date: '2024-02-10', customer: '김규낙찰금', inAmount: 0, outAmount: 500000 },
+                { date: '2024-01-10', customer: '이영희', inAmount: 50000, outAmount: 0 },
+                { date: '2024-01-12', customer: '박민수', inAmount: 30000, outAmount: 0 },
+                { date: '2024-01-18', customer: '최진호', inAmount: 2000000, outAmount: 0 },
+                { date: '2024-01-22', customer: '최진호', inAmount: 300000, outAmount: 0 },
+                { date: '2024-01-28', customer: '최진호', inAmount: 0, outAmount: 2000000 }
+            ];
+            
+            allTransactions = sampleTransactions.map(t => ({
+                id: `${t.date}_${t.customer}_${t.inAmount || t.outAmount}`,
+                date: t.date,
+                customer: t.customer,
+                inAmount: t.inAmount || 0,
+                outAmount: t.outAmount || 0,
+                type: t.inAmount > 0 ? '입금' : '출금',
+                parsedDate: new Date(t.date)
+            }));
+            
+            classifyCustomers();
+            mergeCustomers();
+            updateAllTabs();
+            
+            showNotification('✅ 샘플 데이터가 로드되었습니다.');
+        }
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('페이지 로드 완료');
+            updateAllTabs();
+        });
 
         // 검색 기능
         document.getElementById('customerSearch').addEventListener('input', updateCustomersTab);
