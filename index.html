@@ -2846,8 +2846,8 @@
                     recalculateCustomerDataOnly(allCustomers[customerName]);
                     console.log(`${customerName} 재계산 완료`);
                     
-                    // 해당 고객이 관련된 테이블만 업데이트 (전체 업데이트 대신)
-                    updateSpecificCustomerInTables(customerName);
+                    // 보증금 관리 테이블 강제 새로고침 (확실한 방법)
+                    updateDepositsTab();
                 }
             }
             
@@ -2865,13 +2865,26 @@
         // 특정 고객만 테이블에서 업데이트 (성능 최적화)
         function updateSpecificCustomerInTables(customerName) {
             const customer = allCustomers[customerName];
-            if (!customer) return;
+            if (!customer) {
+                console.log(`고객 ${customerName}을 찾을 수 없습니다.`);
+                return;
+            }
+            
+            console.log(`=== ${customerName} 테이블 업데이트 시작 ===`);
+            console.log('고객 정보:', customer);
             
             // 보증금 관리 테이블에서 해당 고객 행만 업데이트
             const depositRows = document.querySelectorAll('#depositsTable tbody tr');
-            depositRows.forEach(row => {
+            console.log(`총 ${depositRows.length}개 행 발견`);
+            
+            let found = false;
+            depositRows.forEach((row, index) => {
                 const rowCustomerName = row.cells[0].textContent.trim();
+                console.log(`행 ${index}: "${rowCustomerName}" vs "${customerName}"`);
+                
                 if (rowCustomerName === customerName) {
+                    found = true;
+                    console.log(`일치하는 행 발견! 행 ${index} 업데이트 시작`);
                     // 해당 행의 모든 컬럼 업데이트 (컬럼 순서: 고객명, 보증금, 보증금날짜, 환급상태, 환급일, 매출, 비고)
                     row.cells[1].innerHTML = `<span class="amount-negative">₩${customer.depositAmount.toLocaleString()}</span>`;
                     row.cells[2].textContent = customer.depositDate || '-';
@@ -2899,11 +2912,16 @@
                 }
             });
             
+            if (!found) {
+                console.log(`일치하는 행을 찾지 못했습니다. 전체 테이블 새로고침 실행`);
+                // 일치하는 행이 없으면 전체 테이블 새로고침
+                updateDepositsTab();
+            } else {
+                console.log(`${customerName} 행 업데이트 완료`);
+            }
+            
             // CEO 대시보드 요약 수치만 업데이트
             updateHeaderStatsOnly();
-            
-            // 보증금 관리 테이블 완전 새로고침 (강제)
-            updateDepositsTab();
         }
         
         // 헤더 통계만 업데이트 (빠른 업데이트)
