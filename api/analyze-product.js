@@ -1,4 +1,13 @@
 export default async function handler(req, res) {
+    // CORS 헤더 설정
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -9,7 +18,15 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Image is required' });
     }
 
+    // API 키 확인
+    if (!process.env.OPENAI_API_KEY) {
+        console.error('OPENAI_API_KEY not found');
+        return res.status(500).json({ error: 'API key not configured' });
+    }
+
     try {
+        console.log('Starting product analysis...');
+        
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -52,13 +69,19 @@ export default async function handler(req, res) {
             })
         });
 
-        const data = await response.json();
-        
+        console.log('OpenAI API response status:', response.status);
+
         if (!response.ok) {
-            throw new Error(data.error?.message || 'OpenAI API error');
+            const errorData = await response.json();
+            console.error('OpenAI API error:', errorData);
+            throw new Error(errorData.error?.message || 'OpenAI API error');
         }
 
+        const data = await response.json();
+        console.log('OpenAI API response received');
+        
         const analysisText = data.choices[0].message.content;
+        console.log('Analysis text:', analysisText);
         
         // JSON 추출
         let productAnalysis;
@@ -70,6 +93,7 @@ export default async function handler(req, res) {
                 throw new Error('No JSON found in response');
             }
         } catch (parseError) {
+            console.error('JSON parsing error:', parseError);
             // 기본값 사용
             productAnalysis = {
                 brand: "명품 브랜드",
@@ -83,10 +107,14 @@ export default async function handler(req, res) {
             };
         }
 
+        console.log('Product analysis completed:', productAnalysis);
         res.status(200).json({ productAnalysis });
 
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Failed to analyze product' });
+        console.error('Error in analyze-product:', error);
+        res.status(500).json({ 
+            error: 'Failed to analyze product',
+            details: error.message 
+        });
     }
 }
