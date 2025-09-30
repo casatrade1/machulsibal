@@ -248,8 +248,31 @@
 
         // 페이지 로드 시 API 키 확인
         window.addEventListener('load', () => {
+            console.log('페이지 로드됨');
             checkApiKeys();
             updateGenerateButtonState();
+        });
+
+        // DOM이 완전히 로드된 후에도 한 번 더 확인
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM 로드됨');
+            
+            // API 키가 없으면 자동으로 설정
+            if (!window.aiService.apiKeys.openai && !window.aiService.apiKeys.claude && !window.aiService.apiKeys.gemini) {
+                console.log('API 키가 없어서 자동 설정합니다');
+                const defaultKeys = {
+                    openai: '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',
+                    claude: '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',
+                    gemini: 'AIzaSyBV82FqsH8hrC3lv9LacuVVUO3iNW45KPk'
+                };
+                window.aiService.saveApiKeys(defaultKeys);
+                updateGenerateButtonState();
+            }
+            
+            setTimeout(() => {
+                checkApiKeys();
+                updateGenerateButtonState();
+            }, 1000);
         });
 
         function handleDragOver(e) {
