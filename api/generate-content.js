@@ -1,4 +1,13 @@
 export default async function handler(req, res) {
+    // CORS 헤더 설정
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
@@ -9,7 +18,15 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Product analysis is required' });
     }
 
+    // API 키 확인
+    if (!process.env.OPENAI_API_KEY || !process.env.CLAUDE_API_KEY) {
+        console.error('API keys not found');
+        return res.status(500).json({ error: 'API keys not configured' });
+    }
+
     try {
+        console.log('Starting content generation...');
+        
         // OpenAI로 쓰레드 콘텐츠 생성
         const threadResponse = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -50,8 +67,15 @@ export default async function handler(req, res) {
             })
         });
 
+        if (!threadResponse.ok) {
+            const errorData = await threadResponse.json();
+            console.error('OpenAI thread error:', errorData);
+            throw new Error(errorData.error?.message || 'OpenAI API error');
+        }
+
         const threadData = await threadResponse.json();
         const threadContent = threadData.choices[0].message.content;
+        console.log('Thread content generated');
 
         // Claude로 블로그 콘텐츠 생성
         const blogResponse = await fetch('https://api.anthropic.com/v1/messages', {
@@ -109,8 +133,15 @@ export default async function handler(req, res) {
             })
         });
 
+        if (!blogResponse.ok) {
+            const errorData = await blogResponse.json();
+            console.error('Claude blog error:', errorData);
+            throw new Error(errorData.error?.message || 'Claude API error');
+        }
+
         const blogData = await blogResponse.json();
         const blogContent = blogData.content[0].text;
+        console.log('Blog content generated');
 
         res.status(200).json({
             productAnalysis,
@@ -121,7 +152,10 @@ export default async function handler(req, res) {
         });
 
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Failed to generate content' });
+        console.error('Error in generate-content:', error);
+        res.status(500).json({ 
+            error: 'Failed to generate content',
+            details: error.message 
+        });
     }
 }
