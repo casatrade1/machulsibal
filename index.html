@@ -62,13 +62,9 @@
                     
                     <div class="mt-6 space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">AI 모델 선택</label>
-                            <select id="ai-model" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <option value="openai">ChatGPT-4 (OpenAI)</option>
-                                <option value="claude">Claude 3 (Anthropic)</option>
-                                <option value="gemini">Gemini Pro (Google)</option>
-                                <option value="all">모든 모델 사용 (최적 결과 선택)</option>
-                            </select>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">💬 추가 코멘트 (선택사항)</label>
+                            <textarea id="user-comment" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none" placeholder="예: 겨울준비, 겨울매입 하고계신다들... 또는 특별한 메시지나 키워드를 입력하세요"></textarea>
+                            <p class="text-xs text-gray-500 mt-1">이 코멘트는 생성되는 콘텐츠에 반영됩니다.</p>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4">
@@ -204,6 +200,7 @@
         const blogContent = document.getElementById('blog-content');
         const blogText = document.getElementById('blog-text');
         const apiKeysModal = document.getElementById('api-keys-modal');
+        const userComment = document.getElementById('user-comment');
 
         // 이벤트 리스너
         uploadArea.addEventListener('click', () => fileInput.click());
@@ -305,9 +302,9 @@
                 return;
             }
 
-            const selectedModel = document.getElementById('ai-model').value;
             const threadTone = document.getElementById('thread-tone').value;
             const blogTone = document.getElementById('blog-tone').value;
+            const comment = userComment.value.trim();
 
             // UI 상태 변경
             generateBtn.disabled = true;
@@ -315,20 +312,38 @@
             generateLoading.classList.remove('hidden');
 
             try {
-                let result;
-                
-                if (selectedModel === 'all') {
-                    result = await window.aiService.generateWithAllModels(currentImageBase64, threadTone, blogTone);
-                } else {
-                    result = await window.aiService.generateContent(currentImageBase64, selectedModel, threadTone, blogTone);
-                }
+                console.log('콘텐츠 생성 시작...', {
+                    hasImage: !!currentImageBase64,
+                    threadTone,
+                    blogTone,
+                    comment,
+                    apiKeys: {
+                        openai: !!window.aiService.apiKeys.openai,
+                        claude: !!window.aiService.apiKeys.claude,
+                        gemini: !!window.aiService.apiKeys.gemini
+                    }
+                });
 
+                // 모든 AI 모델을 사용하여 최적 결과 선택
+                const result = await window.aiService.generateWithAllModels(currentImageBase64, threadTone, blogTone, comment);
+
+                console.log('생성 완료:', result);
                 // 결과 표시
                 displayResults(result);
                 
             } catch (error) {
                 console.error('생성 오류:', error);
-                alert('콘텐츠 생성 중 오류가 발생했습니다: ' + error.message);
+                let errorMessage = '콘텐츠 생성 중 오류가 발생했습니다.';
+                
+                if (error.message.includes('API 키가 설정되지 않았습니다')) {
+                    errorMessage = 'API 키를 먼저 설정해주세요.';
+                } else if (error.message.includes('제품 분석에 실패했습니다')) {
+                    errorMessage = '이미지 분석에 실패했습니다. 다른 이미지를 시도해보세요.';
+                } else if (error.message.includes('사용 가능한 AI 모델이 없습니다')) {
+                    errorMessage = '사용 가능한 AI 모델이 없습니다. API 키를 확인해주세요.';
+                }
+                
+                alert(errorMessage + '\n\n상세 오류: ' + error.message);
             } finally {
                 // UI 상태 복원
                 generateBtn.disabled = false;
