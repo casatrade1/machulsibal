@@ -18,8 +18,10 @@ class AIAPIService {
     }
 
     saveApiKeys(keys) {
+        console.log('API 키 저장 중:', keys);
         this.apiKeys = keys;
         localStorage.setItem('casa-api-keys', JSON.stringify(keys));
+        console.log('API 키 저장 완료:', this.apiKeys);
     }
 
     async analyzeProductWithOpenAI(imageBase64) {
@@ -672,16 +674,28 @@ class AIAPIService {
         const results = [];
         const models = ['openai', 'claude', 'gemini'];
         
+        console.log('사용 가능한 API 키들:', {
+            openai: !!this.apiKeys.openai,
+            claude: !!this.apiKeys.claude,
+            gemini: !!this.apiKeys.gemini
+        });
+        
         for (const model of models) {
             if (this.apiKeys[model]) {
+                console.log(`${model} 모델로 콘텐츠 생성 시작...`);
                 try {
                     const result = await this.generateContent(imageBase64, model, threadTone, blogTone, userComment);
                     results.push(result);
+                    console.log(`${model} 모델 생성 성공`);
                 } catch (error) {
                     console.error(`${model} 생성 실패:`, error);
                 }
+            } else {
+                console.log(`${model} 모델: API 키 없음`);
             }
         }
+
+        console.log(`총 ${results.length}개 모델에서 결과 생성됨`);
 
         if (results.length === 0) {
             throw new Error('사용 가능한 AI 모델이 없습니다.');
