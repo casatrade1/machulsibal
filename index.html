@@ -23,7 +23,10 @@
     <div class="container mx-auto px-4 py-8">
         <!-- Header -->
         <div class="text-center mb-12 fade-in">
-            <div class="flex justify-end mb-4">
+            <div class="flex justify-end mb-4 space-x-2">
+                <button id="debug-btn" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors text-sm">
+                    🔍 디버그
+                </button>
                 <button id="api-key-settings-btn" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors">
                     ⚙️ API 키 설정
                 </button>
@@ -221,6 +224,27 @@
             checkApiKeys(); // 현재 키들을 모달에 로드
             apiKeysModal.classList.remove('hidden');
         });
+        
+        document.getElementById('debug-btn').addEventListener('click', () => {
+            console.log('=== 디버그 정보 ===');
+            console.log('현재 이미지:', !!currentImageBase64);
+            console.log('API 키 상태:', window.aiService.apiKeys);
+            console.log('로컬 스토리지:', localStorage.getItem('casa-api-keys'));
+            console.log('생성 버튼 상태:', generateBtn.disabled);
+            
+            // API 키 테스트
+            const testKeys = {
+                openai: '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',
+                claude: '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',
+                gemini: 'AIzaSyBV82FqsH8hrC3lv9LacuVVUO3iNW45KPk'
+            };
+            
+            console.log('테스트용 API 키 설정 중...');
+            window.aiService.saveApiKeys(testKeys);
+            updateGenerateButtonState();
+            
+            alert(`디버그 정보가 콘솔에 출력되었습니다.\n\n이미지: ${!!currentImageBase64}\nAPI 키: ${Object.keys(window.aiService.apiKeys).filter(k => window.aiService.apiKeys[k]).join(', ') || '없음'}\n\n테스트용 API 키가 설정되었습니다.`);
+        });
 
         // 페이지 로드 시 API 키 확인
         window.addEventListener('load', () => {
@@ -337,6 +361,7 @@
             updateGenerateButtonState();
             
             console.log('API 키 저장 완료');
+            console.log('현재 API 키 상태:', window.aiService.apiKeys);
         }
 
         async function generateContent() {
