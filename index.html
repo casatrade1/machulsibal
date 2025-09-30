@@ -23,6 +23,11 @@
     <div class="container mx-auto px-4 py-8">
         <!-- Header -->
         <div class="text-center mb-12 fade-in">
+            <div class="flex justify-end mb-4">
+                <button id="api-key-settings-btn" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors">
+                    ⚙️ API 키 설정
+                </button>
+            </div>
             <h1 class="text-4xl md:text-6xl font-bold text-white mb-4">
                 까사트레이드 콘텐츠 제작기
             </h1>
@@ -150,7 +155,7 @@
         <div id="api-keys-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
             <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
                 <h3 class="text-xl font-bold text-gray-800 mb-4">API 키 설정</h3>
-                <p class="text-gray-600 mb-6">AI 서비스를 사용하려면 API 키를 입력해주세요.</p>
+                <p class="text-gray-600 mb-6">AI 서비스를 사용하려면 최소 하나의 API 키를 입력해주세요.</p>
                 
                 <div class="space-y-4">
                     <div>
@@ -212,9 +217,16 @@
         document.getElementById('copy-blog').addEventListener('click', () => copyToClipboard(blogText.textContent));
         document.getElementById('save-keys').addEventListener('click', saveApiKeys);
         document.getElementById('cancel-keys').addEventListener('click', () => apiKeysModal.classList.add('hidden'));
+        document.getElementById('api-key-settings-btn').addEventListener('click', () => {
+            checkApiKeys(); // 현재 키들을 모달에 로드
+            apiKeysModal.classList.remove('hidden');
+        });
 
         // 페이지 로드 시 API 키 확인
-        window.addEventListener('load', checkApiKeys);
+        window.addEventListener('load', () => {
+            checkApiKeys();
+            updateGenerateButtonState();
+        });
 
         function handleDragOver(e) {
             e.preventDefault();
@@ -265,8 +277,8 @@
                 };
                 img.src = e.target.result;
                 
-                // 생성 버튼 활성화
-                generateBtn.disabled = false;
+                // 생성 버튼 상태 업데이트
+                updateGenerateButtonState();
             };
             reader.readAsDataURL(file);
         }
@@ -274,26 +286,57 @@
         function checkApiKeys() {
             const stored = localStorage.getItem('casa-api-keys');
             if (stored) {
-                const keys = JSON.parse(stored);
-                window.aiService.saveApiKeys(keys);
+                try {
+                    const keys = JSON.parse(stored);
+                    window.aiService.saveApiKeys(keys);
+                    console.log('API 키 로드됨:', keys);
+                    
+                    // 모달에 현재 키들 표시
+                    document.getElementById('openai-key').value = keys.openai || '';
+                    document.getElementById('claude-key').value = keys.claude || '';
+                    document.getElementById('gemini-key').value = keys.gemini || '';
+                } catch (error) {
+                    console.error('API 키 파싱 오류:', error);
+                    apiKeysModal.classList.remove('hidden');
+                }
             } else {
+                console.log('저장된 API 키 없음');
                 apiKeysModal.classList.remove('hidden');
             }
         }
 
+        function updateGenerateButtonState() {
+            const hasImage = !!currentImageBase64;
+            const hasApiKey = window.aiService.apiKeys.openai || window.aiService.apiKeys.claude || window.aiService.apiKeys.gemini;
+            
+            console.log('버튼 상태 업데이트:', { hasImage, hasApiKey });
+            
+            generateBtn.disabled = !(hasImage && hasApiKey);
+        }
+
         function saveApiKeys() {
             const keys = {
-                openai: document.getElementById('openai-key').value,
-                claude: document.getElementById('claude-key').value,
-                gemini: document.getElementById('gemini-key').value
+                openai: document.getElementById('openai-key').value.trim(),
+                claude: document.getElementById('claude-key').value.trim(),
+                gemini: document.getElementById('gemini-key').value.trim()
             };
+            
+            console.log('API 키 저장 시도:', keys);
+            
+            // 최소 하나의 API 키가 있는지 확인
+            const hasValidKey = keys.openai || keys.claude || keys.gemini;
+            if (!hasValidKey) {
+                alert('최소 하나의 API 키를 입력해주세요.');
+                return;
+            }
             
             window.aiService.saveApiKeys(keys);
             apiKeysModal.classList.add('hidden');
             
-            if (keys.openai || keys.claude || keys.gemini) {
-                generateBtn.disabled = false;
-            }
+            // 생성 버튼 상태 업데이트
+            updateGenerateButtonState();
+            
+            console.log('API 키 저장 완료');
         }
 
         async function generateContent() {
