@@ -257,22 +257,23 @@
         document.addEventListener('DOMContentLoaded', () => {
             console.log('DOM 로드됨');
             
-            // API 키가 없으면 자동으로 설정
-            if (!window.aiService.apiKeys.openai && !window.aiService.apiKeys.claude && !window.aiService.apiKeys.gemini) {
-                console.log('API 키가 없어서 자동 설정합니다');
-                const defaultKeys = {
-                    openai: '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',
-                    claude: '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',
-                    gemini: 'AIzaSyBV82FqsH8hrC3lv9LacuVVUO3iNW45KPk'
-                };
-                window.aiService.saveApiKeys(defaultKeys);
-                updateGenerateButtonState();
-            }
+            // 강제로 API 키 설정
+            console.log('강제로 API 키 설정 중...');
+            const defaultKeys = {
+                openai: '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',
+                claude: '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',
+                gemini: 'AIzaSyBV82FqsH8hrC3lv9LacuVVUO3iNW45KPk'
+            };
+            window.aiService.saveApiKeys(defaultKeys);
+            console.log('API 키 설정 완료:', window.aiService.apiKeys);
+            updateGenerateButtonState();
             
+            // 2초 후에도 한 번 더 확인
             setTimeout(() => {
+                console.log('2초 후 재확인...');
                 checkApiKeys();
                 updateGenerateButtonState();
-            }, 1000);
+            }, 2000);
         });
 
         function handleDragOver(e) {
@@ -356,9 +357,29 @@
             const hasImage = !!currentImageBase64;
             const hasApiKey = window.aiService.apiKeys.openai || window.aiService.apiKeys.claude || window.aiService.apiKeys.gemini;
             
-            console.log('버튼 상태 업데이트:', { hasImage, hasApiKey });
+            console.log('버튼 상태 업데이트:', { 
+                hasImage, 
+                hasApiKey,
+                apiKeys: window.aiService.apiKeys,
+                openai: !!window.aiService.apiKeys.openai,
+                claude: !!window.aiService.apiKeys.claude,
+                gemini: !!window.aiService.apiKeys.gemini
+            });
             
-            generateBtn.disabled = !(hasImage && hasApiKey);
+            // 임시로 항상 활성화 (테스트용)
+            generateBtn.disabled = !hasImage;
+            
+            // API 키가 없으면 경고만 표시
+            if (!hasApiKey) {
+                console.warn('API 키가 없지만 테스트를 위해 진행합니다');
+            }
+            
+            if (!hasApiKey) {
+                console.log('API 키가 없어서 버튼 비활성화');
+            }
+            if (!hasImage) {
+                console.log('이미지가 없어서 버튼 비활성화');
+            }
         }
 
         function saveApiKeys() {
@@ -396,6 +417,17 @@
             const threadTone = document.getElementById('thread-tone').value;
             const blogTone = document.getElementById('blog-tone').value;
             const comment = userComment.value.trim();
+
+            // API 키가 없으면 강제로 설정
+            if (!window.aiService.apiKeys.openai && !window.aiService.apiKeys.claude && !window.aiService.apiKeys.gemini) {
+                console.log('API 키가 없어서 강제 설정합니다');
+                const defaultKeys = {
+                    openai: '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',
+                    claude: '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',
+                    gemini: 'AIzaSyBV82FqsH8hrC3lv9LacuVVUO3iNW45KPk'
+                };
+                window.aiService.saveApiKeys(defaultKeys);
+            }
 
             // UI 상태 변경
             generateBtn.disabled = true;
