@@ -67,7 +67,35 @@ class AIAPIService {
                 }
             });
 
-            const analysis = JSON.parse(response.data.choices[0].message.content);
+            const content = response.data.choices[0].message.content;
+            console.log('OpenAI 응답:', content);
+            
+            // JSON 추출 시도
+            let analysis;
+            try {
+                // JSON 코드 블록에서 추출
+                const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
+                if (jsonMatch) {
+                    analysis = JSON.parse(jsonMatch[1]);
+                } else {
+                    // 직접 JSON 파싱 시도
+                    analysis = JSON.parse(content);
+                }
+            } catch (parseError) {
+                console.error('JSON 파싱 오류:', parseError);
+                // 기본값으로 대체
+                analysis = {
+                    brand: "알 수 없음",
+                    model: "알 수 없음",
+                    condition: "B급",
+                    estimatedValue: 1000000,
+                    targetAudience: ["명품 리셀러", "개인 소비자"],
+                    sellingPoints: ["고급스러운 디자인", "브랜드 가치"],
+                    marketTrends: ["명품 시장 성장", "온라인 거래 증가"],
+                    competitorAnalysis: "경쟁력 있는 제품"
+                };
+            }
+            
             return analysis;
         } catch (error) {
             console.error('OpenAI 분석 오류:', error);
@@ -75,12 +103,14 @@ class AIAPIService {
         }
     }
 
-    async generateThreadWithOpenAI(productInfo, tone = 'persuasive') {
+    async generateThreadWithOpenAI(productInfo, tone = 'persuasive', userComment = '') {
         if (!this.apiKeys.openai) {
             throw new Error('OpenAI API 키가 설정되지 않았습니다.');
         }
 
         try {
+            const commentContext = userComment ? `\n\n사용자 추가 코멘트: "${userComment}"\n이 코멘트를 자연스럽게 반영하여 콘텐츠를 생성해주세요.` : '';
+            
             const prompt = `까사트레이드 플랫폼을 위한 쓰레드 콘텐츠를 생성해주세요.
 
 제품 정보:
@@ -90,7 +120,7 @@ class AIAPIService {
 - 예상가격: ${productInfo.estimatedValue.toLocaleString()}원
 
 타겟 고객: ${productInfo.targetAudience.join(', ')}
-판매 포인트: ${productInfo.sellingPoints.join(', ')}
+판매 포인트: ${productInfo.sellingPoints.join(', ')}${commentContext}
 
 요구사항:
 1. ${tone}한 톤으로 작성
@@ -135,12 +165,14 @@ class AIAPIService {
         }
     }
 
-    async generateBlogWithOpenAI(productInfo, tone = 'professional') {
+    async generateBlogWithOpenAI(productInfo, tone = 'professional', userComment = '') {
         if (!this.apiKeys.openai) {
             throw new Error('OpenAI API 키가 설정되지 않았습니다.');
         }
 
         try {
+            const commentContext = userComment ? `\n\n사용자 추가 코멘트: "${userComment}"\n이 코멘트를 자연스럽게 반영하여 콘텐츠를 생성해주세요.` : '';
+            
             const prompt = `까사트레이드 플랫폼을 위한 SEO 최적화 블로그 콘텐츠를 생성해주세요.
 
 제품 정보:
@@ -151,7 +183,7 @@ class AIAPIService {
 
 타겟 고객: ${productInfo.targetAudience.join(', ')}
 판매 포인트: ${productInfo.sellingPoints.join(', ')}
-시장 트렌드: ${productInfo.marketTrends.join(', ')}
+시장 트렌드: ${productInfo.marketTrends.join(', ')}${commentContext}
 
 요구사항:
 1. SEO 최적화 (키워드: ${productInfo.brand}, ${productInfo.model}, 명품, 리셀, 까사트레이드)
@@ -250,7 +282,35 @@ class AIAPIService {
                 }
             });
 
-            const analysis = JSON.parse(response.data.content[0].text);
+            const content = response.data.content[0].text;
+            console.log('Claude 응답:', content);
+            
+            // JSON 추출 시도
+            let analysis;
+            try {
+                // JSON 코드 블록에서 추출
+                const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
+                if (jsonMatch) {
+                    analysis = JSON.parse(jsonMatch[1]);
+                } else {
+                    // 직접 JSON 파싱 시도
+                    analysis = JSON.parse(content);
+                }
+            } catch (parseError) {
+                console.error('JSON 파싱 오류:', parseError);
+                // 기본값으로 대체
+                analysis = {
+                    brand: "알 수 없음",
+                    model: "알 수 없음",
+                    condition: "B급",
+                    estimatedValue: 1000000,
+                    targetAudience: ["명품 리셀러", "개인 소비자"],
+                    sellingPoints: ["고급스러운 디자인", "브랜드 가치"],
+                    marketTrends: ["명품 시장 성장", "온라인 거래 증가"],
+                    competitorAnalysis: "경쟁력 있는 제품"
+                };
+            }
+            
             return analysis;
         } catch (error) {
             console.error('Claude 분석 오류:', error);
@@ -258,12 +318,14 @@ class AIAPIService {
         }
     }
 
-    async generateThreadWithClaude(productInfo, tone = 'persuasive') {
+    async generateThreadWithClaude(productInfo, tone = 'persuasive', userComment = '') {
         if (!this.apiKeys.claude) {
             throw new Error('Claude API 키가 설정되지 않았습니다.');
         }
 
         try {
+            const commentContext = userComment ? `\n\n사용자 추가 코멘트: "${userComment}"\n이 코멘트를 자연스럽게 반영하여 콘텐츠를 생성해주세요.` : '';
+            
             const prompt = `까사트레이드 플랫폼을 위한 쓰레드 콘텐츠를 생성해주세요.
 
 제품 정보:
@@ -273,7 +335,7 @@ class AIAPIService {
 - 예상가격: ${productInfo.estimatedValue.toLocaleString()}원
 
 타겟 고객: ${productInfo.targetAudience.join(', ')}
-판매 포인트: ${productInfo.sellingPoints.join(', ')}
+판매 포인트: ${productInfo.sellingPoints.join(', ')}${commentContext}
 
 요구사항:
 1. ${tone}한 톤으로 작성
@@ -309,12 +371,14 @@ class AIAPIService {
         }
     }
 
-    async generateBlogWithClaude(productInfo, tone = 'professional') {
+    async generateBlogWithClaude(productInfo, tone = 'professional', userComment = '') {
         if (!this.apiKeys.claude) {
             throw new Error('Claude API 키가 설정되지 않았습니다.');
         }
 
         try {
+            const commentContext = userComment ? `\n\n사용자 추가 코멘트: "${userComment}"\n이 코멘트를 자연스럽게 반영하여 콘텐츠를 생성해주세요.` : '';
+            
             const prompt = `까사트레이드 플랫폼을 위한 SEO 최적화 블로그 콘텐츠를 생성해주세요.
 
 제품 정보:
@@ -325,7 +389,7 @@ class AIAPIService {
 
 타겟 고객: ${productInfo.targetAudience.join(', ')}
 판매 포인트: ${productInfo.sellingPoints.join(', ')}
-시장 트렌드: ${productInfo.marketTrends.join(', ')}
+시장 트렌드: ${productInfo.marketTrends.join(', ')}${commentContext}
 
 요구사항:
 1. SEO 최적화 (키워드: ${productInfo.brand}, ${productInfo.model}, 명품, 리셀, 까사트레이드)
@@ -406,7 +470,35 @@ class AIAPIService {
                 }]
             });
 
-            const analysis = JSON.parse(response.data.candidates[0].content.parts[0].text);
+            const text = response.data.candidates[0].content.parts[0].text;
+            console.log('Gemini 응답:', text);
+            
+            // JSON 추출 시도
+            let analysis;
+            try {
+                // JSON 코드 블록에서 추출
+                const jsonMatch = text.match(/```json\s*([\s\S]*?)\s*```/) || text.match(/```\s*([\s\S]*?)\s*```/);
+                if (jsonMatch) {
+                    analysis = JSON.parse(jsonMatch[1]);
+                } else {
+                    // 직접 JSON 파싱 시도
+                    analysis = JSON.parse(text);
+                }
+            } catch (parseError) {
+                console.error('JSON 파싱 오류:', parseError);
+                // 기본값으로 대체
+                analysis = {
+                    brand: "알 수 없음",
+                    model: "알 수 없음",
+                    condition: "B급",
+                    estimatedValue: 1000000,
+                    targetAudience: ["명품 리셀러", "개인 소비자"],
+                    sellingPoints: ["고급스러운 디자인", "브랜드 가치"],
+                    marketTrends: ["명품 시장 성장", "온라인 거래 증가"],
+                    competitorAnalysis: "경쟁력 있는 제품"
+                };
+            }
+            
             return analysis;
         } catch (error) {
             console.error('Gemini 분석 오류:', error);
@@ -414,12 +506,14 @@ class AIAPIService {
         }
     }
 
-    async generateThreadWithGemini(productInfo, tone = 'persuasive') {
+    async generateThreadWithGemini(productInfo, tone = 'persuasive', userComment = '') {
         if (!this.apiKeys.gemini) {
             throw new Error('Gemini API 키가 설정되지 않았습니다.');
         }
 
         try {
+            const commentContext = userComment ? `\n\n사용자 추가 코멘트: "${userComment}"\n이 코멘트를 자연스럽게 반영하여 콘텐츠를 생성해주세요.` : '';
+            
             const prompt = `까사트레이드 플랫폼을 위한 쓰레드 콘텐츠를 생성해주세요.
 
 제품 정보:
@@ -429,7 +523,7 @@ class AIAPIService {
 - 예상가격: ${productInfo.estimatedValue.toLocaleString()}원
 
 타겟 고객: ${productInfo.targetAudience.join(', ')}
-판매 포인트: ${productInfo.sellingPoints.join(', ')}
+판매 포인트: ${productInfo.sellingPoints.join(', ')}${commentContext}
 
 요구사항:
 1. ${tone}한 톤으로 작성
@@ -456,12 +550,14 @@ class AIAPIService {
         }
     }
 
-    async generateBlogWithGemini(productInfo, tone = 'professional') {
+    async generateBlogWithGemini(productInfo, tone = 'professional', userComment = '') {
         if (!this.apiKeys.gemini) {
             throw new Error('Gemini API 키가 설정되지 않았습니다.');
         }
 
         try {
+            const commentContext = userComment ? `\n\n사용자 추가 코멘트: "${userComment}"\n이 코멘트를 자연스럽게 반영하여 콘텐츠를 생성해주세요.` : '';
+            
             const prompt = `까사트레이드 플랫폼을 위한 SEO 최적화 블로그 콘텐츠를 생성해주세요.
 
 제품 정보:
@@ -472,7 +568,7 @@ class AIAPIService {
 
 타겟 고객: ${productInfo.targetAudience.join(', ')}
 판매 포인트: ${productInfo.sellingPoints.join(', ')}
-시장 트렌드: ${productInfo.marketTrends.join(', ')}
+시장 트렌드: ${productInfo.marketTrends.join(', ')}${commentContext}
 
 요구사항:
 1. SEO 최적화 (키워드: ${productInfo.brand}, ${productInfo.model}, 명품, 리셀, 까사트레이드)
@@ -510,7 +606,7 @@ class AIAPIService {
         }
     }
 
-    async generateContent(imageBase64, model, threadTone, blogTone) {
+    async generateContent(imageBase64, model, threadTone, blogTone, userComment = '') {
         const startTime = Date.now();
         
         try {
@@ -534,26 +630,26 @@ class AIAPIService {
             // 쓰레드 콘텐츠 생성
             switch (model) {
                 case 'openai':
-                    threadContent = await this.generateThreadWithOpenAI(productAnalysis, threadTone);
+                    threadContent = await this.generateThreadWithOpenAI(productAnalysis, threadTone, userComment);
                     break;
                 case 'claude':
-                    threadContent = await this.generateThreadWithClaude(productAnalysis, threadTone);
+                    threadContent = await this.generateThreadWithClaude(productAnalysis, threadTone, userComment);
                     break;
                 case 'gemini':
-                    threadContent = await this.generateThreadWithGemini(productAnalysis, threadTone);
+                    threadContent = await this.generateThreadWithGemini(productAnalysis, threadTone, userComment);
                     break;
             }
 
             // 블로그 콘텐츠 생성
             switch (model) {
                 case 'openai':
-                    blogContent = await this.generateBlogWithOpenAI(productAnalysis, blogTone);
+                    blogContent = await this.generateBlogWithOpenAI(productAnalysis, blogTone, userComment);
                     break;
                 case 'claude':
-                    blogContent = await this.generateBlogWithClaude(productAnalysis, blogTone);
+                    blogContent = await this.generateBlogWithClaude(productAnalysis, blogTone, userComment);
                     break;
                 case 'gemini':
-                    blogContent = await this.generateBlogWithGemini(productAnalysis, blogTone);
+                    blogContent = await this.generateBlogWithGemini(productAnalysis, blogTone, userComment);
                     break;
             }
 
@@ -572,14 +668,14 @@ class AIAPIService {
         }
     }
 
-    async generateWithAllModels(imageBase64, threadTone, blogTone) {
+    async generateWithAllModels(imageBase64, threadTone, blogTone, userComment = '') {
         const results = [];
         const models = ['openai', 'claude', 'gemini'];
         
         for (const model of models) {
             if (this.apiKeys[model]) {
                 try {
-                    const result = await this.generateContent(imageBase64, model, threadTone, blogTone);
+                    const result = await this.generateContent(imageBase64, model, threadTone, blogTone, userComment);
                     results.push(result);
                 } catch (error) {
                     console.error(`${model} 생성 실패:`, error);
